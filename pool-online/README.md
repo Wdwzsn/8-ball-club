@@ -11,6 +11,16 @@
 
 > 状态：账号 + 数据库 + 匹配 + 服务端物理 + 网页可玩 已全部跑通。可双人跨电脑对战。
 
+## 上线部署
+
+完整步骤见 **[deploy/DEPLOY.md](deploy/DEPLOY.md)**（域名解析 → 一键脚本 → HTTPS 证书 → 备份）。
+
+```bash
+git clone https://github.com/Wdwzsn/8-ball-club.git /opt/8ball
+cd /opt/8ball
+sudo bash pool-online/deploy/install.sh play.你的域名 你的邮箱
+```
+
 ## 本地运行
 
 ```bash

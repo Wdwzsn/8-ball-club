@@ -391,7 +391,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+    if len(sys.argv) > 1:
+        port = int(sys.argv[1])
+    else:
+        port = int(os.environ.get("PORT", "8080"))
     srv = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     print("8-BALL CLUB server listening on http://0.0.0.0:%d  (db=%s)" % (port, DB_PATH))
     try:
