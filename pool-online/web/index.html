@@ -358,10 +358,18 @@ function drawBall(ctx,id,x,y,r,alpha=1){
   ctx.save();ctx.globalAlpha=alpha;
   ctx.beginPath();ctx.ellipse(x+r*.28,y+r*.34,r*1.02,r*.9,0,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.35)';ctx.fill();
   const base=COLORS[id]||'#fff';
-  const g=ctx.createRadialGradient(x-r*.38,y-r*.42,r*.12,x,y,r*1.15);
-  g.addColorStop(0,shade(base,.55));g.addColorStop(.5,base);g.addColorStop(1,shade(base,-.55));
-  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
-  ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1;ctx.stroke();
+  const stripe=id>=9&&id<=15;
+  ctx.save();
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.clip();
+  ctx.fillStyle=stripe?'#f7f3e4':base;
+  ctx.fillRect(x-r,y-r,r*2,r*2);
+  if(stripe){ ctx.fillStyle=base; ctx.fillRect(x-r,y-r*.52,r*2,r*1.04); }
+  const g=ctx.createRadialGradient(x-r*.38,y-r*.42,r*.1,x,y,r*1.15);
+  g.addColorStop(0,'rgba(255,255,255,.55)');g.addColorStop(.45,'rgba(255,255,255,.05)');
+  g.addColorStop(.78,'rgba(0,0,0,.10)');g.addColorStop(1,'rgba(0,0,0,.55)');
+  ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);
+  ctx.restore();
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1;ctx.stroke();
   if(id>=1&&id<=15){
     ctx.beginPath();ctx.arc(x,y,r*.44,0,Math.PI*2);ctx.fillStyle='#f7f3e4';ctx.fill();
     ctx.fillStyle='#1a1a1a';ctx.font=`bold ${Math.max(8,Math.round(r*.62))}px sans-serif`;
