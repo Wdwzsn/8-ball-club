@@ -6,9 +6,6 @@ services:
     buildCommand: "cd pool-online && pip install -r requirements.txt"
     startCommand: "cd pool-online && python server.py"
     healthCheckPath: /api/health
-    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.4"
-      - key: PYTHONUNBUFFERED
-        value: "1"
