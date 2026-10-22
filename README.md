@@ -17,8 +17,10 @@ pool-online/   在线对战（Python 服务端 + 网页客户端，含账号数�
 
 ## 在线对战
 
+**在线体验：<https://eight-ball-club.onrender.com>**
+
 - 账号注册/登录（SQLite + PBKDF2 密码哈希）
 - 服务端权威物理与规则，浏览器拖杆击球
-- 运行：`cd pool-online && python server.py 8080`，浏览器打开 `http://127.0.0.1:8080`
+- 本地运行：`cd pool-online && python server.py 8080`，浏览器打开 `http://127.0.0.1:8080`
 
 详见 [`java-pool/README.md`](java-pool/README.md) 与 [`pool-online/README.md`](pool-online/README.md)。
