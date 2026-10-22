@@ -3,6 +3,7 @@
 import copy
 import math
 import random
+import time
 
 from game import R, W, H, Shot, Track, advance, all_stopped
 from match import Match, OPEN, SOLIDS, STRIPES, in_group, remaining
@@ -58,22 +59,30 @@ class AI:
             return AI._break(m, rnd)
         cands = AI._candidates(m)
         cands.sort(key=lambda c: -c["geom"])
-        limit = 5 if level == 0 else 10 if level == 1 else 18
+        limit = 5 if level == 0 else 8 if level == 1 else 14
         cands = cands[:limit]
         best = None
         best_score = -1e9
         best_t, best_p = 0, -1
-        variants = 1 if level == 0 else 3 if level == 1 else 4
+        variants = 1 if level == 0 else 2 if level == 1 else 3
         offs = [0.0, 0.008, -0.008, 0.016, -0.016]
         pms = [1.0, 1.35, 0.75]
+        budget = 1.2 if level == 0 else 2.0 if level == 1 else 3.0
+        start = time.time()
         for c in cands:
+            if time.time() - start > budget:
+                break
             for i in range(variants):
+                if time.time() - start > budget:
+                    break
                 for k in range(3 if level == AI.HARD else 2):
                     shot = Shot(c["cx"], c["cy"], c["angle"] + offs[i],
                                 min(1.0, c["power"] * pms[k]), 0, 0, c["pocket"])
                     sc = AI._score(m, shot, c["target"], c["pocket"])
                     if sc > best_score:
                         best_score, best, best_t, best_p = sc, shot, c["target"], c["pocket"]
+                if best is not None and time.time() - start > budget:
+                    break
         if best is None or best_score < -600:
             safe = AI._safety(m, level, rnd)
             if safe:
@@ -153,7 +162,7 @@ class AI:
         except Exception:
             return -1e9
         track = Track()
-        for _ in range(6000):
+        for _ in range(2000):
             advance(sim.balls, 1 / 120, track)
             if all_stopped(sim.balls):
                 break
@@ -183,10 +192,15 @@ class AI:
             m.ensure_cue()
             cue = m.balls[0]
         best, best_sc = None, -1e9
+        start = time.time()
         for tid in targets:
+            if time.time() - start > 1.5:
+                break
             t = m.balls[tid]
             base = math.atan2(t.y - cue.y, t.x - cue.x)
             for da in (0, 0.02, -0.02, 0.05, -0.05):
+                if time.time() - start > 1.5:
+                    break
                 for p in (0.28, 0.42, 0.6):
                     shot = Shot(cue.x, cue.y, base + da, p, 0, 0, -1)
                     sc = AI._score(m, shot, tid, -1)
