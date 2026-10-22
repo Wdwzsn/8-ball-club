@@ -15,6 +15,8 @@
 
 完整步骤见 **[deploy/DEPLOY.md](deploy/DEPLOY.md)**（域名解析 → 一键脚本 → HTTPS 证书 → 备份）。
 
+也可以免费部署到 Render（无需服务器）：见 **[deploy/RENDER.md](deploy/RENDER.md)**。
+
 ```bash
 git clone https://github.com/Wdwzsn/8-ball-club.git /opt/8ball
 cd /opt/8ball
