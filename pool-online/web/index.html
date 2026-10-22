@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>8-BALL CLUB · 在线对战</title>
+<style>
+  :root { --bg:#0c120e; --panel:#121a16; --line:#24332a; --gold:#d8b36a; --text:#e7e1d2; --muted:#8fa096; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:radial-gradient(1200px 700px at 50% -10%, #132019, #070a08); color:var(--text);
+         font-family:"Microsoft YaHei UI","Microsoft YaHei","Segoe UI",sans-serif; min-height:100vh; }
+  .wrap { max-width:980px; margin:0 auto; padding:22px 16px; }
+  h1 { color:var(--gold); font-size:28px; letter-spacing:2px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  input { flex:1; min-width:160px; background:#0d1511; border:1px solid var(--line); color:var(--text);
+          padding:10px 12px; border-radius:8px; font-size:14px; }
+  button { background:#1b251f; border:1px solid var(--line); color:var(--text); padding:10px 18px;
+           border-radius:8px; font-size:14px; cursor:pointer; }
+  button:hover { border-color:var(--gold); color:var(--gold); }
+  .error { color:#e05a4e; font-size:13px; min-height:16px; margin-top:8px; }
+  .hidden { display:none !important; }
+  .status { margin-top:12px; color:var(--muted); font-size:14px; min-height:18px; }
+  .status b { color:var(--gold); }
+  .small { color:var(--muted); font-size:12px; }
+  #top { display:flex; gap:14px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  .pl { padding:8px 14px; border:1px solid var(--line); border-radius:10px; font-size:13px; }
+  .pl.active { border-color:var(--gold); background:#1b241d; }
+  #msg { flex:1; color:var(--gold); font-size:14px; text-align:center; }
+  canvas { width:100%; border-radius:12px; background:#0a0f0c; display:block; cursor:crosshair; }
+  #hint { color:var(--muted); font-size:12.5px; margin-top:8px; }
+  #winOverlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; }
+  #winBox { background:#16201a; border:1px solid var(--gold); border-radius:16px; padding:30px 40px; text-align:center; }
+  #winBox h2 { color:var(--gold); margin:0 0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>8-BALL CLUB</h1>
+  <div class="sub">标准八球 · 在线对战（服务端权威物理）</div>
+
+  <div class="card" id="authBox">
+    <div class="row">
+      <input id="username" placeholder="昵称（2-16 位中英文/数字）" maxlength="16">
+      <input id="password" type="password" placeholder="密码（至少 6 位）" maxlength="64">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button onclick="auth('login')">登录</button>
+      <button onclick="auth('register')">注册新账号</button>
+    </div>
+    <div class="error" id="authErr"></div>
+  </div>
+
+  <div class="card hidden" id="lobbyBox">
+    <div class="row">
+      <span>账号：<b id="who" style="color:var(--gold)"></b></span>
+      <span class="small" id="connState">连接中…</span>
+      <span style="flex:1"></span>
+      <button id="matchBtn" onclick="toggleMatch()">开始匹配</button>
+      <button onclick="logout()">退出</button>
+    </div>
+    <div class="status" id="matchStatus">尚未匹配</div>
+    <div id="gameArea" class="hidden" style="margin-top:12px">
+      <div id="top">
+        <div class="pl" id="p0">-</div>
+        <div class="pl" id="p1">-</div>
+        <div id="msg"></div>
+      </div>
+      <canvas id="table" width="920" height="490"></canvas>
+      <div id="hint"></div>
+    </div>
+  </div>
+</div>
+
+<div id="winOverlay"><div id="winBox"><h2 id="winTitle"></h2><div id="winSub" class="small"></div><br><button onclick="closeWin()">继续观看</button> <button onclick="logout()">退出</button></div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const W=2.54, H=1.27, R=0.028575;
+const BALL_COLORS = {0:'#f6f3ea',1:'#f0c027',2:'#1b4ba8',3:'#c4232c',4:'#5b2a8c',5:'#e5741b',6:'#0e7a40',7:'#7c2230',8:'#1a1b20',9:'#f0c027',10:'#1b4ba8',11:'#c4232c',12:'#5b2a8c',13:'#e5741b',14:'#0e7a40',15:'#7c2230'};
+const POCKETS = [[0,0],[W,0],[0,H],[W,H],[W/2,0],[W/2,H]];
+
+let token = localStorage.getItem('pool_token') || '';
+let user = '', state = null, balls = [], me = -1, es = null;
+let aimAngle = 0, power = 0, dragging = false, dragSX = 0, dragSY = 0;
+let placing = false, placeX = 0, placeY = 0, calledPocket = -1;
+
+async function api(path, method='GET', body=null) {
+  const opt = { method, headers:{} };
+  if (body) { opt.headers['Content-Type']='application/json'; opt.body = JSON.stringify(body); }
+  const sep = path.includes('?') ? '&' : '?';
+  const r = await fetch(path + sep + 'token=' + encodeURIComponent(token), opt);
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(j.error || ('HTTP '+r.status));
+  return j;
+}
+async function auth(kind) {
+  $('authErr').textContent = '';
+  try {
+    const j = await api('/api/'+kind, 'POST', { username: $('username').value.trim(), password: $('password').value });
+    token = j.token; user = j.user; localStorage.setItem('pool_token', token);
+    enterLobby();
+  } catch(e) { $('authErr').textContent = e.message; }
+}
+function enterLobby() { $('authBox').classList.add('hidden'); $('lobbyBox').classList.remove('hidden'); $('who').textContent = user; connectEvents(); }
+function connectEvents() {
+  if (es) es.close();
+  es = new EventSource('/api/events?token=' + encodeURIComponent(token));
+  es.onopen = () => $('connState').textContent = '实时已连接';
+  es.onerror = () => $('connState').textContent = '实时重连中…';
+  es.addEventListener('message', ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'matched' || m.type === 'state') {
+      state = m.state; balls = m.state.balls; me = state.players.indexOf(user);
+      if (m.type === 'matched') { $('matchStatus').textContent='已匹配，对局开始'; $('matchBtn').classList.add('hidden'); }
+      $('gameArea').classList.remove('hidden');
+      if (state.winner >= 0) showWin(); else $('winOverlay').style.display='none';
+      if (state.ballInHand && state.turn===me) { placing = true; placeX = ball(0)?ball(0).x:0.6; placeY = ball(0)?ball(0).y:H/2; }
+      draw();
+    } else if (m.type === 'frame') { balls = m.balls; draw(); }
+  });
+}
+function inGroup(id,g){ return g==='SOLIDS'?(id>=1&&id<=7):g==='STRIPES'?(id>=9&&id<=15):false; }
+function mustCall() {
+  if (!state || state.winner>=0 || me<0) return false;
+  const g = state.groups[me]; if (g==='OPEN') return false;
+  return !balls.some(b => b.active && inGroup(b.id,g));
+}
+function myTurn(){ return state && me>=0 && state.turn===me && state.winner<0; }
+function ball(id){ return balls.find(b=>b.id===id) || null; }
+function effCue() {
+  if (state && state.ballInHand) return [placeX, placeY];
+  const c = ball(0); return c ? [c.x, c.y] : [0.6, H/2];
+}
+
+async function toggleMatch() {
+  try {
+    const j = await api('/api/match/join', 'POST');
+    if (j.status === 'waiting') $('matchStatus').innerHTML = '正在寻找对手…';
+    else if (j.status === 'matched' || j.status === 'in_room') {
+      state=j.state; balls=j.state.balls; me=state.players.indexOf(user);
+      $('gameArea').classList.remove('hidden'); $('matchBtn').classList.add('hidden');
+      $('matchStatus').textContent='对局中'; draw();
+    }
+  } catch(e){ $('matchStatus').textContent=e.message; }
+}
+async function logout(){ try{ await api('/api/logout','POST'); }catch(e){} localStorage.removeItem('pool_token'); location.reload(); }
+
+function geom() {
+  const c = $('table');
+  const s = Math.min((c.width-70)/W, (c.height-40)/H);
+  return { s, ox:(c.width-W*s)/2, oy:(c.height-H*s)/2 };
+}
+
+function draw() {
+  const c = $('table'), ctx = c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+  const {s,ox,oy} = geom();
+  const X = wx=>ox+wx*s, Y = wy=>oy+wy*s;
+  ctx.fillStyle='#4b2617'; ctx.fillRect(ox-16, oy-16, W*s+32, H*s+32);
+  ctx.fillStyle='#0e6b3e'; ctx.fillRect(ox, oy, W*s, H*s);
+  ctx.fillStyle='rgba(0,0,0,.22)'; ctx.fillRect(ox, oy, W*s, 8);
+  for (const [px,py] of POCKETS) { ctx.beginPath(); ctx.arc(X(px),Y(py),0.06*s,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
+  for (const b of balls) {
+    if (!b.active) continue;
+    if (b.id===0 && state && state.ballInHand && state.turn===me) continue;
+    paintBall(ctx, b.id, X(b.x), Y(b.y), R*s, 1);
+  }
+  if (!state) return;
+  ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.beginPath();
+  ctx.moveTo(X(2.54*0.25), oy); ctx.lineTo(X(2.54*0.25), oy+H*s); ctx.stroke();
+
+  if (myTurn()) {
+    if (state.ballInHand) {
+      paintBall(ctx, 0, X(placeX), Y(placeY), R*s, placing ? 0.55 : 1);
+      ctx.strokeStyle = placing ? '#6fd59a' : 'rgba(120,255,180,.5)';
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(placeX), Y(placeY), R*s*1.5, 0, Math.PI*2); ctx.stroke();
+      if (!placing) drawAim(ctx, X(placeX), Y(placeY), s);
+    } else {
+      const c0 = ball(0);
+      if (c0 && c0.active) drawAim(ctx, X(c0.x), Y(c0.y), s);
+    }
+    if (mustCall()) {
+      const t = Date.now()/300;
+      for (let k=0;k<6;k++) {
+        const [px,py]=POCKETS[k];
+        ctx.strokeStyle = k===calledPocket ? '#d8b36a' : `rgba(120,235,170,${0.5+0.3*Math.sin(t)})`;
+        ctx.lineWidth = k===calledPocket?3:1.5;
+        ctx.beginPath(); ctx.arc(X(px),Y(py), 0.06*s*1.6, 0, Math.PI*2); ctx.stroke();
+      }
+    }
+  }
+  $('p0').innerHTML = (state.players[0]||'-') + (state.groups[0]!=='OPEN' ? ` <span style="color:var(--gold)">${state.groups[0]==='SOLIDS'?'全色':'花色'}</span>`:'') + ` <b style="color:var(--gold)">${state.score[0]}</b>`;
+  $('p1').innerHTML = (state.players[1]||'-') + (state.groups[1]!=='OPEN' ? ` <span style="color:var(--gold)">${state.groups[1]==='SOLIDS'?'全色':'花色'}</span>`:'') + ` <b style="color:var(--gold)">${state.score[1]}</b>`;
+  $('p0').classList.toggle('active', state.turn===0);
+  $('p1').classList.toggle('active', state.turn===1);
+  $('msg').textContent = state.message || '';
+  $('hint').textContent = !myTurn() ? '等待对手击球…'
+    : (state.ballInHand ? (placing ? (state.kitchenOnly?'自由球：在开球线后点击放置母球':'自由球：点击放置母球') : '已放置母球，瞄准后拖杆击球')
+    : (mustCall() ? '8 号球必须叫袋：点击目标袋口，然后拖杆击球' : '拖动球杆蓄力，松手击球'));
+}
+
+function paintBall(ctx, id, x, y, r, a) {
+  ctx.save(); ctx.globalAlpha=a;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=BALL_COLORS[id]; ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=1; ctx.stroke();
+  if (id>=1 && id<=15) {
+    ctx.beginPath(); ctx.arc(x,y,r*0.5,0,Math.PI*2); ctx.fillStyle='#f7f3e4'; ctx.fill();
+    ctx.fillStyle='#222'; ctx.font=`bold ${Math.round(r*0.7)}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(id>8?id-8:id, x, y+1);
+  }
+  ctx.restore();
+}
+
+function drawAim(ctx, cx, cy, s) {
+  ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.setLineDash([6,6]); ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(aimAngle)*0.7*s, cy+Math.sin(aimAngle)*0.7*s); ctx.stroke();
+  ctx.setLineDash([]);
+  const dx=Math.cos(aimAngle), dy=Math.sin(aimAngle);
+  const pull=(0.018+power*0.22)*s;
+  const tipX=cx-dx*(R*s+pull), tipY=cy-dy*(R*s+pull);
+  const buttX=tipX-dx*1.3*s, buttY=tipY-dy*1.3*s;
+  ctx.strokeStyle='#8a5a33'; ctx.lineWidth=7; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(tipX,tipY); ctx.lineTo(buttX,buttY); ctx.stroke();
+  ctx.strokeStyle='#e8c48c'; ctx.lineWidth=4.5;
+  ctx.beginPath(); ctx.moveTo(tipX,tipY); ctx.lineTo(buttX,buttY); ctx.stroke();
+}
+
+function showWin(){ $('winTitle').textContent = (state.players[state.winner]||'?')+' 获胜'; $('winSub').textContent = me===state.winner?'恭喜，你赢了！':'再接再厉'; $('winOverlay').style.display='flex'; }
+function closeWin(){ $('winOverlay').style.display='none'; }
+
+// ---------------- 输入 ----------------
+const canvas = $('table');
+function evtXY(e){ const r=canvas.getBoundingClientRect(); return [(e.clientX-r.left)*canvas.width/r.width,(e.clientY-r.top)*canvas.height/r.height]; }
+function toWorld(mx,my){ const g=geom(); return [(mx-g.ox)/g.s,(my-g.oy)/g.s]; }
+
+canvas.addEventListener('mousemove', e => {
+  if (!myTurn()) return;
+  const [mx,my]=evtXY(e); const [wx,wy]=toWorld(mx,my);
+  if (state.ballInHand && placing) { placeX=wx; placeY=wy; }
+  else if (!dragging) {
+    const [cx,cy]=effCue();
+    const dx=wx-cx, dy=wy-cy;
+    if (Math.hypot(dx,dy)>0.02) aimAngle=Math.atan2(dy,dx);
+  }
+  if (dragging) {
+    const dx=mx-dragSX, dy=my-dragSY;
+    power=Math.max(0,Math.min(1, -(dx*Math.cos(aimAngle)+dy*Math.sin(aimAngle))/170));
+  }
+  draw();
+});
+canvas.addEventListener('mousedown', e => {
+  if (!myTurn()) return;
+  const [mx,my]=evtXY(e); const [wx,wy]=toWorld(mx,my);
+  if (state.ballInHand && placing) {
+    placeX=wx; placeY=wy; placing=false; draw(); return;
+  }
+  if (mustCall()) {
+    let best=-1, bd=0.06;
+    for (let k=0;k<6;k++){ const d=Math.hypot(wx-POCKETS[k][0],wy-POCKETS[k][1]); if(d<bd){bd=d;best=k;} }
+    if (best>=0){ calledPocket=best; draw(); return; }
+  }
+  dragging=true; dragSX=mx; dragSY=my; power=0;
+});
+canvas.addEventListener('mouseup', () => {
+  if (!dragging) return;
+  dragging=false;
+  if (power>0.03) {
+    const [cx,cy]=effCue();
+    api('/api/match/shoot','POST',{ x:cx, y:cy, angle:aimAngle, power, calledPocket }).catch(err=>$('hint').textContent=err.message);
+  }
+  power=0;
+});
+
+(async () => {
+  if (token) {
+    try { const j = await api('/api/me'); if (j.user){ user=j.user; enterLobby(); return; } } catch(e){}
+    localStorage.removeItem('pool_token'); token='';
+  }
+})();
+</script>
+</body>
+</html>

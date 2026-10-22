@@ -1,0 +1,15 @@
+/*
+!/.gitignore
+!/README.md
+!/java-pool/
+!/pool-online/
+
+# Java 构建产物与本地文件
+java-pool/out/
+java-pool/shots/
+java-pool/.jdk-home
+
+# Python 运行时数据
+pool-online/data/
+pool-online/__pycache__/
+pool-online/sse_out.txt
