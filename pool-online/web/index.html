@@ -3,282 +3,544 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>8-BALL CLUB · 在线对战</title>
+<title>8-BALL CLUB · 标准八球</title>
 <style>
-  :root { --bg:#0c120e; --panel:#121a16; --line:#24332a; --gold:#d8b36a; --text:#e7e1d2; --muted:#8fa096; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:radial-gradient(1200px 700px at 50% -10%, #132019, #070a08); color:var(--text);
-         font-family:"Microsoft YaHei UI","Microsoft YaHei","Segoe UI",sans-serif; min-height:100vh; }
-  .wrap { max-width:980px; margin:0 auto; padding:22px 16px; }
-  h1 { color:var(--gold); font-size:28px; letter-spacing:2px; margin:0 0 2px; }
-  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; }
-  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  input { flex:1; min-width:160px; background:#0d1511; border:1px solid var(--line); color:var(--text);
-          padding:10px 12px; border-radius:8px; font-size:14px; }
-  button { background:#1b251f; border:1px solid var(--line); color:var(--text); padding:10px 18px;
-           border-radius:8px; font-size:14px; cursor:pointer; }
-  button:hover { border-color:var(--gold); color:var(--gold); }
-  .error { color:#e05a4e; font-size:13px; min-height:16px; margin-top:8px; }
-  .hidden { display:none !important; }
-  .status { margin-top:12px; color:var(--muted); font-size:14px; min-height:18px; }
-  .status b { color:var(--gold); }
-  .small { color:var(--muted); font-size:12px; }
-  #top { display:flex; gap:14px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
-  .pl { padding:8px 14px; border:1px solid var(--line); border-radius:10px; font-size:13px; }
-  .pl.active { border-color:var(--gold); background:#1b241d; }
-  #msg { flex:1; color:var(--gold); font-size:14px; text-align:center; }
-  canvas { width:100%; border-radius:12px; background:#0a0f0c; display:block; cursor:crosshair; }
-  #hint { color:var(--muted); font-size:12.5px; margin-top:8px; }
-  #winOverlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; }
-  #winBox { background:#16201a; border:1px solid var(--gold); border-radius:16px; padding:30px 40px; text-align:center; }
-  #winBox h2 { color:var(--gold); margin:0 0 8px; }
+  :root{
+    --bg1:#0b120e; --bg2:#070a08; --panel:#121a16; --card:#161f19; --line:#24332a; --line2:#2c3a31;
+    --gold:#d8b36a; --gold2:#b89150; --text:#e7e1d2; --muted:#8fa096; --green:#3fbf7f; --red:#e05a4e;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;color:var(--text);font-family:"Microsoft YaHei UI","Microsoft YaHei","Segoe UI",sans-serif;
+    background:radial-gradient(1200px 700px at 50% -10%, #132019, #070a08 60%, #050806);min-height:100vh;overflow-x:hidden}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 26px}
+  header{height:72px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)}
+  .logo{font-weight:700;color:var(--gold);font-size:17px;letter-spacing:1px}
+  .logo span{color:var(--muted);font-weight:400;font-size:12px;margin-left:10px;letter-spacing:0}
+  .chip{display:flex;align-items:center;gap:9px;padding:8px 16px;border-radius:999px;cursor:pointer;
+    border:1px solid rgba(216,179,106,.55);background:rgba(14,23,18,.85);font-size:13px;color:var(--text);user-select:none;transition:.15s}
+  .chip:hover{border-color:var(--gold);background:#152019}
+  .chip .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .chip.guest .dot{background:var(--gold);box-shadow:0 0 8px rgba(216,179,106,.8)}
+  .chip.logged .dot{background:var(--green);box-shadow:0 0 8px rgba(63,191,127,.8)}
+  .chip small{color:var(--muted);font-size:11px}
+  .view{display:none}.view.active{display:block;animation:fade .18s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  /* 首页 */
+  .home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:30px;align-items:center;padding:40px 0 30px}
+  h1{font-size:clamp(38px,5vw,64px);line-height:1;color:var(--gold);margin:0 0 14px;letter-spacing:2px}
+  .sub{font-size:clamp(14px,1.6vw,19px);letter-spacing:3px;color:#cfc8b8;margin:0 0 20px}
+  .desc{color:var(--muted);font-size:13.5px;line-height:1.9;margin:0 0 24px;max-width:470px}
+  .btns{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#1b251f;color:var(--text);
+    padding:11px 20px;font-size:14px;transition:.15s}
+  button:hover{border-color:var(--gold);color:var(--gold)}
+  button.primary{background:#24332a;border-color:rgba(216,179,106,.6);color:var(--gold);font-weight:700}
+  button.primary:hover{background:#2c3d31}
+  button.big{padding:13px 26px;font-size:15px}
+  .status{color:var(--muted);font-size:13px;margin-top:14px;min-height:18px}
+  .status b{color:var(--gold)}
+  .diff{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px;margin-top:6px}
+  .diff button{padding:6px 14px;border-radius:999px;font-size:12px}
+  .diff button.sel{color:var(--gold);border-color:var(--gold);background:#1b241d}
+  .preview canvas{width:100%;max-width:620px;filter:drop-shadow(0 24px 40px rgba(0,0,0,.55))}
+  /* 生涯 */
+  .careerHead{display:flex;align-items:center;gap:14px;margin:26px 0 18px}
+  .careerHead h2{color:var(--gold);font-size:22px;margin:0}
+  .careerHead .back{background:none;border:none;color:var(--muted);padding:0;font-size:13px}
+  .careerHead .back:hover{color:var(--gold)}
+  .careerGrid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:26px;padding-bottom:40px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .bigAvatar{width:132px;height:132px;margin:0 auto 10px;border-radius:50%;border:3px solid var(--gold);
+    box-shadow:0 0 34px rgba(63,191,127,.25);display:block;background:#16241b}
+  .avatarGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:12px 0 16px}
+  .avatarGrid img{width:100%;aspect-ratio:1;border-radius:50%;border:2px solid var(--line);cursor:pointer;background:#16241b}
+  .avatarGrid img.sel{border-color:var(--gold);box-shadow:0 0 12px rgba(216,179,106,.5)}
+  .nickRow{display:flex;gap:8px;margin-bottom:16px}
+  .nickRow input{flex:1;background:#0d1511;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;font-family:inherit}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 10px;text-align:center}
+  .stat b{display:block;color:var(--gold);font-size:20px;margin-bottom:4px}
+  .stat span{color:var(--muted);font-size:10.5px}
+  .achHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:var(--text);font-size:14px}
+  .achHead b{color:var(--gold)}
+  .progress{height:7px;background:#101915;border-radius:99px;margin-bottom:12px;overflow:hidden}
+  .progress i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--gold));width:0}
+  .ach{display:flex;gap:12px;align-items:center;background:#101613;border:1px solid #1e2a23;border-radius:10px;padding:11px 14px;margin-bottom:6px}
+  .ach.done{background:#16241b;border-color:#3a6b4e}
+  .ach .ic{width:22px;text-align:center;color:#59665e;font-weight:700}
+  .ach.done .ic{color:var(--gold)}
+  .ach .nm{font-weight:700;font-size:12.5px;color:#6e7c73}
+  .ach.done .nm{color:var(--gold)}
+  .ach .ds{font-size:10.5px;color:#59665e;margin-top:2px}
+  .ach.done .ds{color:var(--gold2)}
+  /* 对局 */
+  .gameTop{display:flex;align-items:center;gap:12px;margin:18px 0 10px;flex-wrap:wrap}
+  .pl{padding:8px 14px;border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--muted)}
+  .pl.active{border-color:var(--gold);color:var(--text);background:#1b241d}
+  .pl b{color:var(--gold)}
+  .turnMsg{flex:1;text-align:center;color:var(--gold);font-size:14px;min-width:160px}
+  #table{width:100%;border-radius:14px;background:#0a0f0c;display:block;cursor:crosshair;touch-action:none}
+  #hint{color:var(--muted);font-size:12.5px;margin:8px 0 30px;text-align:center}
+  .hidden{display:none!important}
+  /* 登录 */
+  .loginWrap{display:flex;justify-content:center;padding:50px 0 70px}
+  .loginCard{width:min(430px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  .loginCard h2{margin:0 0 4px;color:var(--gold);font-size:21px}
+  .loginCard .tip{color:var(--muted);font-size:12px;margin:0 0 16px}
+  .tabs{display:flex;gap:8px;margin-bottom:14px}
+  .tabs button{flex:1;padding:9px 0;font-size:13px;background:#0f1713;color:var(--muted)}
+  .tabs button.active{color:var(--gold);border-color:var(--gold);background:#1b241d}
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:5px}
+  .field input{width:100%;background:#0d1511;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px 12px;font-size:14px;outline:none;font-family:inherit}
+  .field input:focus{border-color:var(--gold)}
+  .error{color:var(--red);font-size:12.5px;min-height:18px;margin:2px 0 8px}
+  .submit{width:100%;padding:12px;font-weight:700}
+  .switch{background:none;border:none;color:var(--muted);font-size:12px;padding:8px 0;width:100%}
+  .divider{display:flex;align-items:center;gap:10px;color:#3b4a41;font-size:11px;margin:12px 0}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+  .back{background:none;border:none;color:var(--muted);padding:0;font-size:12.5px;margin-bottom:12px}
+  .back:hover{color:var(--gold)}
+  /* 结算 */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:20}
+  .overlay.show{display:flex}
+  .overCard{background:#16201a;border:1px solid var(--gold);border-radius:18px;padding:30px 42px;text-align:center}
+  .overCard h2{color:var(--gold);margin:0 0 6px}
+  .overCard p{color:var(--muted);margin:0 0 18px}
+  .overCard button{margin:0 6px}
+  @media (max-width:900px){
+    .home{grid-template-columns:1fr;padding-top:22px}.preview{order:-1}
+    .careerGrid{grid-template-columns:1fr}header{height:60px}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>8-BALL CLUB</h1>
-  <div class="sub">标准八球 · 在线对战（服务端权威物理）</div>
+  <header>
+    <div class="logo">8-BALL CLUB <span>标准八球 · 人机 / 在线</span></div>
+    <div id="accountChip" class="chip guest" onclick="onChipClick()">
+      <span class="dot"></span><span id="chipText">游客模式</span><small id="chipSub">点击登录</small>
+    </div>
+  </header>
 
-  <div class="card" id="authBox">
-    <div class="row">
-      <input id="username" placeholder="昵称（2-16 位中英文/数字）" maxlength="16">
-      <input id="password" type="password" placeholder="密码（至少 6 位）" maxlength="64">
-    </div>
-    <div class="row" style="margin-top:10px">
-      <button onclick="auth('login')">登录</button>
-      <button onclick="auth('register')">注册新账号</button>
-    </div>
-    <div class="error" id="authErr"></div>
-  </div>
-
-  <div class="card hidden" id="lobbyBox">
-    <div class="row">
-      <span>账号：<b id="who" style="color:var(--gold)"></b></span>
-      <span class="small" id="connState">连接中…</span>
-      <span style="flex:1"></span>
-      <button id="matchBtn" onclick="toggleMatch()">开始匹配</button>
-      <button onclick="logout()">退出</button>
-    </div>
-    <div class="status" id="matchStatus">尚未匹配</div>
-    <div id="gameArea" class="hidden" style="margin-top:12px">
-      <div id="top">
-        <div class="pl" id="p0">-</div>
-        <div class="pl" id="p1">-</div>
-        <div id="msg"></div>
+  <!-- 首页 -->
+  <section id="view-home" class="view active">
+    <div class="home">
+      <div>
+        <h1>8-BALL CLUB</h1>
+        <div class="sub">标 准 八 球 · 拟 真 物 理</div>
+        <p class="desc">与桌面版同一套物理与规则：绿色台呢、真实摩擦、库边反弹。人机对战、在线匹配、生涯成就。</p>
+        <div class="btns">
+          <button class="primary big" onclick="startAi(selectedLevel)">人机对战</button>
+          <button class="big" onclick="startMatch()">在线匹配</button>
+          <button class="big" onclick="showView('career')">我的生涯</button>
+        </div>
+        <div class="diff" id="diffRow">
+          <span>电脑难度</span>
+          <button data-lv="0" onclick="setLevel(0)">简单</button>
+          <button data-lv="1" class="sel" onclick="setLevel(1)">普通</button>
+          <button data-lv="2" onclick="setLevel(2)">高手</button>
+        </div>
+        <div id="homeStatus" class="status"></div>
       </div>
-      <canvas id="table" width="920" height="490"></canvas>
-      <div id="hint"></div>
+      <div class="preview"><canvas id="previewTable" width="760" height="420"></canvas></div>
     </div>
+  </section>
+
+  <!-- 生涯 -->
+  <section id="view-career" class="view">
+    <div class="careerHead">
+      <button class="back" onclick="showView('home')">← 返回</button>
+      <h2>我 的 生 涯</h2>
+      <span id="careerWho" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
+    </div>
+    <div class="careerGrid">
+      <div class="panel">
+        <img id="bigAvatar" class="bigAvatar" alt="">
+        <div style="text-align:center;color:var(--muted);font-size:11px;margin-bottom:4px">选择头像</div>
+        <div class="avatarGrid" id="avatarGrid"></div>
+        <div class="nickRow">
+          <input id="nickInput" maxlength="12" placeholder="昵称">
+          <button onclick="saveNick()">保存</button>
+        </div>
+        <div class="stats" id="statGrid"></div>
+      </div>
+      <div class="panel">
+        <div class="achHead"><span>成就</span><span><b id="achCount">0</b> / 11</span></div>
+        <div class="progress"><i id="achBar"></i></div>
+        <div id="achList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 登录 -->
+  <section id="view-login" class="view">
+    <div class="loginWrap">
+      <div class="loginCard">
+        <button class="back" onclick="showView('home')">← 返回首页</button>
+        <h2>登录 / 注册</h2>
+        <p class="tip">游客模式也能直接玩；注册后可保存昵称与战绩。</p>
+        <div class="tabs">
+          <button id="tabLogin" class="active" onclick="setAuthMode('login')">老用户登录</button>
+          <button id="tabRegister" onclick="setAuthMode('register')">注册新用户</button>
+        </div>
+        <div class="field"><label>昵称</label><input id="authUser" maxlength="16" placeholder="2-16 位中英文/数字"></div>
+        <div class="field"><label>密码</label><input id="authPass" type="password" maxlength="64" placeholder="至少 6 位" onkeydown="if(event.key==='Enter')submitAuth()"></div>
+        <div id="authErr" class="error"></div>
+        <button id="authSubmit" class="primary submit" onclick="submitAuth()">登 录</button>
+        <div class="divider">或</div>
+        <button class="switch" onclick="showView('home')">以游客身份继续</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 对局 -->
+  <section id="view-game" class="view">
+    <div class="gameTop">
+      <div class="pl" id="p0">-</div>
+      <div class="pl" id="p1">-</div>
+      <div class="turnMsg" id="turnMsg"></div>
+      <button onclick="leaveGame()">返回大厅</button>
+      <button id="restartBtn" class="hidden" onclick="startAi(selectedLevel)">再来一局</button>
+    </div>
+    <canvas id="table" width="980" height="520"></canvas>
+    <div id="hint"></div>
+  </section>
+</div>
+
+<div id="overlay" class="overlay">
+  <div class="overCard">
+    <h2 id="overTitle"></h2>
+    <p id="overSub"></p>
+    <button class="primary" onclick="closeOverlay()">继续</button>
   </div>
 </div>
 
-<div id="winOverlay"><div id="winBox"><h2 id="winTitle"></h2><div id="winSub" class="small"></div><br><button onclick="closeWin()">继续观看</button> <button onclick="logout()">退出</button></div></div>
-
 <script>
-const $ = id => document.getElementById(id);
-const W=2.54, H=1.27, R=0.028575;
-const BALL_COLORS = {0:'#f6f3ea',1:'#f0c027',2:'#1b4ba8',3:'#c4232c',4:'#5b2a8c',5:'#e5741b',6:'#0e7a40',7:'#7c2230',8:'#1a1b20',9:'#f0c027',10:'#1b4ba8',11:'#c4232c',12:'#5b2a8c',13:'#e5741b',14:'#0e7a40',15:'#7c2230'};
-const POCKETS = [[0,0],[W,0],[0,H],[W,H],[W/2,0],[W/2,H]];
+const $=id=>document.getElementById(id);
+const W=2.54,H=1.27,R=0.028575;
+const COLORS={0:'#f6f3ea',1:'#f0c027',2:'#1b4ba8',3:'#c4232c',4:'#5b2a8c',5:'#e5741b',6:'#0e7a40',7:'#7c2230',8:'#1a1b20',9:'#f0c027',10:'#1b4ba8',11:'#c4232c',12:'#5b2a8c',13:'#e5741b',14:'#0e7a40',15:'#7c2230'};
+const POCKETS=[[0,0],[W,0],[0,H],[W,H],[W/2,0],[W/2,H]];
+const ACH=[
+ {id:'first_win',n:'首胜',d:'第一次战胜电脑',f:c=>c.wins>=1},
+ {id:'wins_5',n:'渐入佳境',d:'累计战胜电脑 5 次',f:c=>c.wins>=5},
+ {id:'wins_20',n:'老手',d:'累计战胜电脑 20 次',f:c=>c.wins>=20},
+ {id:'wins_100',n:'大师',d:'累计战胜电脑 100 次',f:c=>c.wins>=100},
+ {id:'streak_3',n:'三连胜',d:'连赢电脑 3 局',f:c=>c.bestStreak>=3},
+ {id:'streak_5',n:'五连胜',d:'连赢电脑 5 局',f:c=>c.bestStreak>=5},
+ {id:'break_pot',n:'开门红',d:'开球即进球',f:c=>c.breakPots>=1},
+ {id:'pot_50',n:'神射手',d:'累计打进 50 球',f:c=>c.potted>=50},
+ {id:'pot_500',n:'百发百中',d:'累计打进 500 球',f:c=>c.potted>=500},
+ {id:'games_10',n:'渐入佳境·局数',d:'完成 10 局人机对战',f:c=>c.games>=10},
+ {id:'winrate_50',n:'势均力敌',d:'至少 10 局且胜率过半',f:c=>c.games>=10&&c.wins/c.games>=0.5}
+];
 
-let token = localStorage.getItem('pool_token') || '';
-let user = '', state = null, balls = [], me = -1, es = null;
-let aimAngle = 0, power = 0, dragging = false, dragSX = 0, dragSY = 0;
-let placing = false, placeX = 0, placeY = 0, calledPocket = -1;
+let token=localStorage.getItem('pool_token')||'';
+let user='',guest=true;
+let matchState=null,balls=[],me=-1,es=null;
+let selectedLevel=1;
+let aimAngle=0,power=0,dragging=false,dragSX=0,dragSY=0,placing=false,placeX=0,placeY=0,calledPocket=-1;
+let authMode='login';
+let career=loadCareer();
+let recordedKey=null;
 
-async function api(path, method='GET', body=null) {
-  const opt = { method, headers:{} };
-  if (body) { opt.headers['Content-Type']='application/json'; opt.body = JSON.stringify(body); }
-  const sep = path.includes('?') ? '&' : '?';
-  const r = await fetch(path + sep + 'token=' + encodeURIComponent(token), opt);
-  const j = await r.json().catch(()=>({}));
-  if (!r.ok) throw new Error(j.error || ('HTTP '+r.status));
+// ---------- API ----------
+async function api(path,method='GET',body=null){
+  const opt={method,headers:{}};
+  if(body){opt.headers['Content-Type']='application/json';opt.body=JSON.stringify(body);}
+  const sep=path.includes('?')?'&':'?';
+  const r=await fetch(path+sep+'token='+encodeURIComponent(token),opt);
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
   return j;
 }
-async function auth(kind) {
-  $('authErr').textContent = '';
-  try {
-    const j = await api('/api/'+kind, 'POST', { username: $('username').value.trim(), password: $('password').value });
-    token = j.token; user = j.user; localStorage.setItem('pool_token', token);
-    enterLobby();
-  } catch(e) { $('authErr').textContent = e.message; }
+
+// ---------- 账号 ----------
+async function boot(){
+  if(token){ try{ const m=await api('/api/me'); if(m.user){user=m.user;guest=!!m.guest;} else token=''; }catch(e){} }
+  if(!token){
+    try{ const g=await api('/api/guest','POST',{}); token=g.token; user=g.user; guest=true; localStorage.setItem('pool_token',token); }
+    catch(e){ $('homeStatus').textContent='无法连接服务器：'+e.message; }
+  }
+  updateChip(); connectSSE(); drawPreview(); renderCareer();
 }
-function enterLobby() { $('authBox').classList.add('hidden'); $('lobbyBox').classList.remove('hidden'); $('who').textContent = user; connectEvents(); }
-function connectEvents() {
-  if (es) es.close();
-  es = new EventSource('/api/events?token=' + encodeURIComponent(token));
-  es.onopen = () => $('connState').textContent = '实时已连接';
-  es.onerror = () => $('connState').textContent = '实时重连中…';
-  es.addEventListener('message', ev => {
-    const m = JSON.parse(ev.data);
-    if (m.type === 'matched' || m.type === 'state') {
-      state = m.state; balls = m.state.balls; me = state.players.indexOf(user);
-      if (m.type === 'matched') { $('matchStatus').textContent='已匹配，对局开始'; $('matchBtn').classList.add('hidden'); }
-      $('gameArea').classList.remove('hidden');
-      if (state.winner >= 0) showWin(); else $('winOverlay').style.display='none';
-      if (state.ballInHand && state.turn===me) { placing = true; placeX = ball(0)?ball(0).x:0.6; placeY = ball(0)?ball(0).y:H/2; }
-      draw();
-    } else if (m.type === 'frame') { balls = m.balls; draw(); }
+function updateChip(){
+  const chip=$('accountChip');
+  if(guest){ chip.className='chip guest'; $('chipText').textContent='游客模式'; $('chipSub').textContent='点击登录'; }
+  else{ chip.className='chip logged'; $('chipText').textContent=user; $('chipSub').textContent='已登录'; }
+}
+function onChipClick(){
+  if($('view-game').classList.contains('active')){ $('hint').textContent='对局中不能切换账号，请先返回大厅'; return; }
+  if(guest){ showView('login'); }
+  else if(confirm('退出登录并以游客身份继续？')){
+    api('/api/logout','POST',{}).catch(()=>{});
+    token='';localStorage.removeItem('pool_token');guest=true;user='';boot();showView('home');
+  }
+}
+function setAuthMode(m){
+  authMode=m;
+  $('tabLogin').classList.toggle('active',m==='login');
+  $('tabRegister').classList.toggle('active',m==='register');
+  $('authSubmit').textContent=m==='login'?'登 录':'注 册';
+  $('authErr').textContent='';
+}
+async function submitAuth(){
+  const u=$('authUser').value.trim(),p=$('authPass').value;
+  $('authErr').textContent='';
+  if(!u||!p){ $('authErr').textContent='请填写昵称和密码'; return; }
+  $('authSubmit').disabled=true;
+  try{
+    const r=await api('/api/'+authMode,'POST',{username:u,password:p});
+    token=r.token;user=r.user;guest=!!r.guest;localStorage.setItem('pool_token',token);
+    updateChip();connectSSE();showView('home');
+    $('homeStatus').innerHTML='已登录：<b>'+user+'</b>';$('authPass').value='';
+  }catch(e){ $('authErr').textContent=e.message; }
+  finally{ $('authSubmit').disabled=false; }
+}
+
+// ---------- 视图 ----------
+function showView(name){
+  for(const v of ['home','career','login','game']) $('view-'+v).classList.toggle('active',v===name);
+  if(name==='career') renderCareer();
+  if(name==='game') setTimeout(draw,30);
+}
+function leaveGame(){ showView('home'); $('homeStatus').textContent='对局仍在进行，点对应按钮可回到球桌'; }
+
+// ---------- 匹配 / 实时 ----------
+async function startAi(level){
+  $('homeStatus').textContent='正在开始人机对战…';
+  try{
+    const j=await api('/api/ai/new','POST',{level});
+    applyState(j.state); showView('game');
+    recordedKey=null; $('restartBtn').classList.add('hidden');
+  }catch(e){ $('homeStatus').textContent='开始失败：'+e.message; }
+}
+async function startMatch(){
+  $('homeStatus').textContent='正在匹配…';
+  try{
+    const j=await api('/api/match/join','POST',{});
+    if(j.status==='waiting'){
+      showView('game'); matchState=null;
+      $('turnMsg').textContent='正在寻找对手…'; $('hint').textContent='等待另一位玩家加入…';
+      const c=$('table'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
+      return;
+    }
+    applyState(j.state); showView('game');
+  }catch(e){ $('homeStatus').textContent='匹配失败：'+e.message; }
+}
+function connectSSE(){
+  if(es) es.close();
+  es=new EventSource('/api/events?token='+encodeURIComponent(token));
+  es.addEventListener('message',ev=>{
+    const m=JSON.parse(ev.data);
+    if(m.type==='matched'||m.type==='state'){ applyState(m.state); if(m.type==='matched') showView('game'); }
+    else if(m.type==='frame'){ balls=m.balls; draw(); }
+    else if(m.type==='ai_thinking'){ $('turnMsg').textContent='电脑思考中…'; }
   });
 }
-function inGroup(id,g){ return g==='SOLIDS'?(id>=1&&id<=7):g==='STRIPES'?(id>=9&&id<=15):false; }
-function mustCall() {
-  if (!state || state.winner>=0 || me<0) return false;
-  const g = state.groups[me]; if (g==='OPEN') return false;
-  return !balls.some(b => b.active && inGroup(b.id,g));
-}
-function myTurn(){ return state && me>=0 && state.turn===me && state.winner<0; }
-function ball(id){ return balls.find(b=>b.id===id) || null; }
-function effCue() {
-  if (state && state.ballInHand) return [placeX, placeY];
-  const c = ball(0); return c ? [c.x, c.y] : [0.6, H/2];
-}
-
-async function toggleMatch() {
-  try {
-    const j = await api('/api/match/join', 'POST');
-    if (j.status === 'waiting') $('matchStatus').innerHTML = '正在寻找对手…';
-    else if (j.status === 'matched' || j.status === 'in_room') {
-      state=j.state; balls=j.state.balls; me=state.players.indexOf(user);
-      $('gameArea').classList.remove('hidden'); $('matchBtn').classList.add('hidden');
-      $('matchStatus').textContent='对局中'; draw();
-    }
-  } catch(e){ $('matchStatus').textContent=e.message; }
-}
-async function logout(){ try{ await api('/api/logout','POST'); }catch(e){} localStorage.removeItem('pool_token'); location.reload(); }
-
-function geom() {
-  const c = $('table');
-  const s = Math.min((c.width-70)/W, (c.height-40)/H);
-  return { s, ox:(c.width-W*s)/2, oy:(c.height-H*s)/2 };
-}
-
-function draw() {
-  const c = $('table'), ctx = c.getContext('2d');
-  ctx.clearRect(0,0,c.width,c.height);
-  const {s,ox,oy} = geom();
-  const X = wx=>ox+wx*s, Y = wy=>oy+wy*s;
-  ctx.fillStyle='#4b2617'; ctx.fillRect(ox-16, oy-16, W*s+32, H*s+32);
-  ctx.fillStyle='#0e6b3e'; ctx.fillRect(ox, oy, W*s, H*s);
-  ctx.fillStyle='rgba(0,0,0,.22)'; ctx.fillRect(ox, oy, W*s, 8);
-  for (const [px,py] of POCKETS) { ctx.beginPath(); ctx.arc(X(px),Y(py),0.06*s,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
-  for (const b of balls) {
-    if (!b.active) continue;
-    if (b.id===0 && state && state.ballInHand && state.turn===me) continue;
-    paintBall(ctx, b.id, X(b.x), Y(b.y), R*s, 1);
+function applyState(st){
+  matchState=st; balls=st.balls; me=st.ai?0:st.players.indexOf(user);
+  if(st.ai && st.winner>=0 && !recordedKey){
+    recordAiGame(st.winner===0);
+    recordedKey='done';
   }
-  if (!state) return;
-  ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.beginPath();
-  ctx.moveTo(X(2.54*0.25), oy); ctx.lineTo(X(2.54*0.25), oy+H*s); ctx.stroke();
-
-  if (myTurn()) {
-    if (state.ballInHand) {
-      paintBall(ctx, 0, X(placeX), Y(placeY), R*s, placing ? 0.55 : 1);
-      ctx.strokeStyle = placing ? '#6fd59a' : 'rgba(120,255,180,.5)';
-      ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(placeX), Y(placeY), R*s*1.5, 0, Math.PI*2); ctx.stroke();
-      if (!placing) drawAim(ctx, X(placeX), Y(placeY), s);
-    } else {
-      const c0 = ball(0);
-      if (c0 && c0.active) drawAim(ctx, X(c0.x), Y(c0.y), s);
-    }
-    if (mustCall()) {
-      const t = Date.now()/300;
-      for (let k=0;k<6;k++) {
-        const [px,py]=POCKETS[k];
-        ctx.strokeStyle = k===calledPocket ? '#d8b36a' : `rgba(120,235,170,${0.5+0.3*Math.sin(t)})`;
-        ctx.lineWidth = k===calledPocket?3:1.5;
-        ctx.beginPath(); ctx.arc(X(px),Y(py), 0.06*s*1.6, 0, Math.PI*2); ctx.stroke();
-      }
-    }
-  }
-  $('p0').innerHTML = (state.players[0]||'-') + (state.groups[0]!=='OPEN' ? ` <span style="color:var(--gold)">${state.groups[0]==='SOLIDS'?'全色':'花色'}</span>`:'') + ` <b style="color:var(--gold)">${state.score[0]}</b>`;
-  $('p1').innerHTML = (state.players[1]||'-') + (state.groups[1]!=='OPEN' ? ` <span style="color:var(--gold)">${state.groups[1]==='SOLIDS'?'全色':'花色'}</span>`:'') + ` <b style="color:var(--gold)">${state.score[1]}</b>`;
-  $('p0').classList.toggle('active', state.turn===0);
-  $('p1').classList.toggle('active', state.turn===1);
-  $('msg').textContent = state.message || '';
-  $('hint').textContent = !myTurn() ? '等待对手击球…'
-    : (state.ballInHand ? (placing ? (state.kitchenOnly?'自由球：在开球线后点击放置母球':'自由球：点击放置母球') : '已放置母球，瞄准后拖杆击球')
-    : (mustCall() ? '8 号球必须叫袋：点击目标袋口，然后拖杆击球' : '拖动球杆蓄力，松手击球'));
+  if($('view-game').classList.contains('active')) draw();
+  if(st.winner>=0) showWin(st);
 }
 
-function paintBall(ctx, id, x, y, r, a) {
-  ctx.save(); ctx.globalAlpha=a;
-  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=BALL_COLORS[id]; ctx.fill();
-  ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=1; ctx.stroke();
-  if (id>=1 && id<=15) {
-    ctx.beginPath(); ctx.arc(x,y,r*0.5,0,Math.PI*2); ctx.fillStyle='#f7f3e4'; ctx.fill();
-    ctx.fillStyle='#222'; ctx.font=`bold ${Math.round(r*0.7)}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(id>8?id-8:id, x, y+1);
+// ---------- 绘制 ----------
+function geomFor(c){ const s=Math.min((c.width-80)/W,(c.height-46)/H); return {s,ox:(c.width-W*s)/2,oy:(c.height-H*s)/2}; }
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function shade(hex,amt){const n=parseInt(hex.slice(1),16);let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  if(amt>=0){r+=(255-r)*amt;g+=(255-g)*amt;b+=(255-b)*amt;}else{r*=(1+amt);g*=(1+amt);b*=(1+amt);}return `rgb(${r|0},${g|0},${b|0})`;}
+function drawBall(ctx,id,x,y,r,alpha=1){
+  ctx.save();ctx.globalAlpha=alpha;
+  ctx.beginPath();ctx.ellipse(x+r*.28,y+r*.34,r*1.02,r*.9,0,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.35)';ctx.fill();
+  const base=COLORS[id]||'#fff';
+  const g=ctx.createRadialGradient(x-r*.38,y-r*.42,r*.12,x,y,r*1.15);
+  g.addColorStop(0,shade(base,.55));g.addColorStop(.5,base);g.addColorStop(1,shade(base,-.55));
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1;ctx.stroke();
+  if(id>=1&&id<=15){
+    ctx.beginPath();ctx.arc(x,y,r*.44,0,Math.PI*2);ctx.fillStyle='#f7f3e4';ctx.fill();
+    ctx.fillStyle='#1a1a1a';ctx.font=`bold ${Math.max(8,Math.round(r*.62))}px sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(id>8?id-8:id),x,y+1);
   }
   ctx.restore();
 }
-
-function drawAim(ctx, cx, cy, s) {
-  ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.setLineDash([6,6]); ctx.lineWidth=1.2;
-  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(aimAngle)*0.7*s, cy+Math.sin(aimAngle)*0.7*s); ctx.stroke();
-  ctx.setLineDash([]);
-  const dx=Math.cos(aimAngle), dy=Math.sin(aimAngle);
-  const pull=(0.018+power*0.22)*s;
-  const tipX=cx-dx*(R*s+pull), tipY=cy-dy*(R*s+pull);
-  const buttX=tipX-dx*1.3*s, buttY=tipY-dy*1.3*s;
-  ctx.strokeStyle='#8a5a33'; ctx.lineWidth=7; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(tipX,tipY); ctx.lineTo(buttX,buttY); ctx.stroke();
-  ctx.strokeStyle='#e8c48c'; ctx.lineWidth=4.5;
-  ctx.beginPath(); ctx.moveTo(tipX,tipY); ctx.lineTo(buttX,buttY); ctx.stroke();
+function draw(){
+  const c=$('table'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
+  const {s,ox,oy}=geomFor(c);const X=x=>ox+x*s,Y=y=>oy+y*s;
+  const wood=ctx.createLinearGradient(0,oy-18,0,oy+H*s+18);
+  wood.addColorStop(0,'#6b3a22');wood.addColorStop(.5,'#4b2617');wood.addColorStop(1,'#2f160d');
+  ctx.fillStyle=wood;roundRect(ctx,ox-18,oy-18,W*s+36,H*s+36,18);ctx.fill();
+  const felt=ctx.createRadialGradient(X(W*.38),Y(H*.3),10,X(W*.5),Y(H*.5),W*s*.8);
+  felt.addColorStop(0,'#15804a');felt.addColorStop(.55,'#0e6b3e');felt.addColorStop(1,'#07401f');
+  ctx.fillStyle=felt;ctx.fillRect(ox,oy,W*s,H*s);
+  ctx.fillStyle='rgba(0,0,0,.28)';ctx.fillRect(ox,oy,W*s,7);
+  for(const [px,py] of POCKETS){
+    const g=ctx.createRadialGradient(X(px)-6,Y(py)-6,2,X(px),Y(py),0.062*s);
+    g.addColorStop(0,'#000');g.addColorStop(.75,'#0a0a08');g.addColorStop(1,'#2a1409');
+    ctx.beginPath();ctx.arc(X(px),Y(py),0.062*s,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=1.5;ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(255,255,255,.12)';ctx.beginPath();
+  ctx.moveTo(X(W*.25),oy);ctx.lineTo(X(W*.25),oy+H*s);ctx.stroke();
+  for(const b of balls){
+    if(!b.active)continue;
+    if(b.id===0&&matchState&&matchState.ballInHand&&myTurn())continue;
+    drawBall(ctx,b.id,X(b.x),Y(b.y),R*s);
+  }
+  if(!matchState)return;
+  if(myTurn()){
+    if(matchState.ballInHand){
+      drawBall(ctx,0,X(placeX),Y(placeY),R*s,placing?.55:1);
+      ctx.strokeStyle=placing?'#6fd59a':'rgba(120,255,180,.5)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(X(placeX),Y(placeY),R*s*1.5,0,Math.PI*2);ctx.stroke();
+      if(!placing)drawAim(ctx,X(placeX),Y(placeY),s);
+    }else{
+      const c0=ballOf(0); if(c0&&c0.active)drawAim(ctx,X(c0.x),Y(c0.y),s);
+    }
+    if(mustCall()){
+      const t=Date.now()/300;
+      for(let k=0;k<6;k++){const [px,py]=POCKETS[k];
+        ctx.strokeStyle=k===calledPocket?'#d8b36a':`rgba(120,235,170,${.5+.3*Math.sin(t)})`;
+        ctx.lineWidth=k===calledPocket?3:1.5;ctx.beginPath();ctx.arc(X(px),Y(py),0.062*s*1.65,0,Math.PI*2);ctx.stroke();}
+    }
+  }
+  $('p0').innerHTML=(matchState.players[0]||'-')+groupTag(matchState.groups[0])+' <b>'+matchState.score[0]+'</b>';
+  $('p1').innerHTML=(matchState.players[1]||'-')+groupTag(matchState.groups[1])+' <b>'+matchState.score[1]+'</b>';
+  $('p0').classList.toggle('active',matchState.turn===0);
+  $('p1').classList.toggle('active',matchState.turn===1);
+  $('turnMsg').textContent=matchState.message||'';
+  $('hint').textContent=!myTurn()?'等待对手击球…'
+    :(matchState.ballInHand?(placing?(matchState.kitchenOnly?'自由球：在开球线后点击放置母球':'自由球：点击放置母球'):'已放置母球，瞄准后拖杆击球')
+    :(mustCall()?'8 号球必须叫袋：点击目标袋口，再拖杆击球':'拖动球杆蓄力，松手击球'));
+}
+function groupTag(g){return g==='SOLIDS'?' <span style="color:var(--gold)">全色</span>':g==='STRIPES'?' <span style="color:var(--gold)">花色</span>':'';}
+function drawAim(ctx,cx,cy,s){
+  ctx.strokeStyle='rgba(255,255,255,.45)';ctx.setLineDash([6,7]);ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(aimAngle)*.7*s,cy+Math.sin(aimAngle)*.7*s);ctx.stroke();ctx.setLineDash([]);
+  const dx=Math.cos(aimAngle),dy=Math.sin(aimAngle),pull=(0.018+power*.22)*s;
+  const tipX=cx-dx*(R*s+pull),tipY=cy-dy*(R*s+pull),buttX=tipX-dx*1.35*s,buttY=tipY-dy*1.35*s;
+  const g=ctx.createLinearGradient(tipX,tipY,buttX,buttY);
+  g.addColorStop(0,'#e8c48c');g.addColorStop(.55,'#b07a44');g.addColorStop(1,'#3a2014');
+  ctx.strokeStyle=g;ctx.lineWidth=Math.max(4,R*s*.9);ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(tipX,tipY);ctx.lineTo(buttX,buttY);ctx.stroke();
+}
+function drawPreview(){
+  const c=$('previewTable'),ctx=c.getContext('2d');const s=Math.min((c.width-70)/W,(c.height-40)/H);
+  const ox=(c.width-W*s)/2,oy=(c.height-H*s)/2;
+  const wood=ctx.createLinearGradient(0,oy-14,0,oy+H*s+14);wood.addColorStop(0,'#6b3a22');wood.addColorStop(1,'#2f160d');
+  ctx.fillStyle=wood;roundRect(ctx,ox-14,oy-14,W*s+28,H*s+28,14);ctx.fill();
+  const felt=ctx.createRadialGradient(ox+W*s*.4,oy+H*s*.3,10,ox+W*s*.5,oy+H*s*.5,W*s*.75);
+  felt.addColorStop(0,'#15804a');felt.addColorStop(.6,'#0e6b3e');felt.addColorStop(1,'#06301b');
+  ctx.fillStyle=felt;ctx.fillRect(ox,oy,W*s,H*s);
+  for(const [px,py] of POCKETS){ctx.beginPath();ctx.arc(ox+px*s,oy+py*s,.06*s,0,Math.PI*2);ctx.fillStyle='#000';ctx.fill();}
+  const d=R*2+.0002,dx=d*Math.sqrt(3)/2,fx=W*.75,my=H/2;
+  const rack=[[0,0],[1,0],[1,1],[2,0],[2,2],[2,1],[3,0],[3,1],[3,2],[3,3],[4,0],[4,1],[4,2],[4,3],[4,4]];
+  const ids=[1,9,2,10,8,3,11,4,12,5,13,6,14,7,15];
+  rack.forEach((p,i)=>{const x=fx+p[0]*dx,y=my+(p[1]-p[0]/2)*d;
+    drawBall(ctx,(p[0]===2&&p[1]===1)?8:ids[i],ox+x*s,oy+y*s,R*s);});
+  drawBall(ctx,0,ox+W*.25*s,oy+my*s,R*s);
 }
 
-function showWin(){ $('winTitle').textContent = (state.players[state.winner]||'?')+' 获胜'; $('winSub').textContent = me===state.winner?'恭喜，你赢了！':'再接再厉'; $('winOverlay').style.display='flex'; }
-function closeWin(){ $('winOverlay').style.display='none'; }
-
-// ---------------- 输入 ----------------
-const canvas = $('table');
-function evtXY(e){ const r=canvas.getBoundingClientRect(); return [(e.clientX-r.left)*canvas.width/r.width,(e.clientY-r.top)*canvas.height/r.height]; }
-function toWorld(mx,my){ const g=geom(); return [(mx-g.ox)/g.s,(my-g.oy)/g.s]; }
-
-canvas.addEventListener('mousemove', e => {
-  if (!myTurn()) return;
-  const [mx,my]=evtXY(e); const [wx,wy]=toWorld(mx,my);
-  if (state.ballInHand && placing) { placeX=wx; placeY=wy; }
-  else if (!dragging) {
-    const [cx,cy]=effCue();
-    const dx=wx-cx, dy=wy-cy;
-    if (Math.hypot(dx,dy)>0.02) aimAngle=Math.atan2(dy,dx);
-  }
-  if (dragging) {
-    const dx=mx-dragSX, dy=my-dragSY;
-    power=Math.max(0,Math.min(1, -(dx*Math.cos(aimAngle)+dy*Math.sin(aimAngle))/170));
-  }
+// ---------- 交互 ----------
+function ballOf(id){return balls.find(b=>b.id===id)||null;}
+function inGroup(id,g){return g==='SOLIDS'?(id>=1&&id<=7):g==='STRIPES'?(id>=9&&id<=15):false;}
+function mustCall(){if(!matchState||matchState.winner>=0||me<0)return false;const g=matchState.groups[me];if(g==='OPEN')return false;return !balls.some(b=>b.active&&inGroup(b.id,g));}
+function myTurn(){return matchState&&matchState.winner<0&&(matchState.ai?matchState.turn===0:matchState.turn===me);}
+function effCue(){if(matchState&&matchState.ballInHand)return[placeX,placeY];const c=ballOf(0);return c?[c.x,c.y]:[.6,H/2];}
+const canvas=$('table');
+function evtXY(e){const r=canvas.getBoundingClientRect();return[(e.clientX-r.left)*canvas.width/r.width,(e.clientY-r.top)*canvas.height/r.height];}
+function toWorld(mx,my){const {s,ox,oy}=geomFor(canvas);return[(mx-ox)/s,(my-oy)/s];}
+canvas.addEventListener('mousemove',e=>{
+  if(!myTurn())return;const[mx,my]=evtXY(e);const[wx,wy]=toWorld(mx,my);
+  if(matchState.ballInHand&&placing){placeX=wx;placeY=wy;}
+  else if(!dragging){const[cx,cy]=effCue();const dx=wx-cx,dy=wy-cy;if(Math.hypot(dx,dy)>.02)aimAngle=Math.atan2(dy,dx);}
+  if(dragging){const dx=mx-dragSX,dy=my-dragSY;power=Math.max(0,Math.min(1,-(dx*Math.cos(aimAngle)+dy*Math.sin(aimAngle))/170));}
   draw();
 });
-canvas.addEventListener('mousedown', e => {
-  if (!myTurn()) return;
-  const [mx,my]=evtXY(e); const [wx,wy]=toWorld(mx,my);
-  if (state.ballInHand && placing) {
-    placeX=wx; placeY=wy; placing=false; draw(); return;
-  }
-  if (mustCall()) {
-    let best=-1, bd=0.06;
-    for (let k=0;k<6;k++){ const d=Math.hypot(wx-POCKETS[k][0],wy-POCKETS[k][1]); if(d<bd){bd=d;best=k;} }
-    if (best>=0){ calledPocket=best; draw(); return; }
-  }
-  dragging=true; dragSX=mx; dragSY=my; power=0;
+canvas.addEventListener('mousedown',e=>{
+  if(!myTurn())return;const[mx,my]=evtXY(e);const[wx,wy]=toWorld(mx,my);
+  if(matchState.ballInHand&&placing){placeX=wx;placeY=wy;placing=false;draw();return;}
+  if(mustCall()){let best=-1,bd=.06;for(let k=0;k<6;k++){const d=Math.hypot(wx-POCKETS[k][0],wy-POCKETS[k][1]);if(d<bd){bd=d;best=k;}}
+    if(best>=0){calledPocket=best;draw();return;}}
+  dragging=true;dragSX=mx;dragSY=my;power=0;
 });
-canvas.addEventListener('mouseup', () => {
-  if (!dragging) return;
-  dragging=false;
-  if (power>0.03) {
-    const [cx,cy]=effCue();
-    api('/api/match/shoot','POST',{ x:cx, y:cy, angle:aimAngle, power, calledPocket }).catch(err=>$('hint').textContent=err.message);
+canvas.addEventListener('mouseup',()=>{
+  if(!dragging)return;dragging=false;
+  if(power>.03){
+    const[cx,cy]=effCue();
+    const path=matchState.ai?'/api/ai/shoot':'/api/match/shoot';
+    api(path,'POST',{x:cx,y:cy,angle:aimAngle,power,calledPocket}).catch(err=>$('hint').textContent=err.message);
   }
   power=0;
 });
 
-(async () => {
-  if (token) {
-    try { const j = await api('/api/me'); if (j.user){ user=j.user; enterLobby(); return; } } catch(e){}
-    localStorage.removeItem('pool_token'); token='';
+// ---------- 生涯 ----------
+function defaultCareer(){return{avatar:0,nick:'玩家',games:0,wins:0,streak:0,bestStreak:0,potted:0,breakPots:0,unlocked:[]};}
+function loadCareer(){try{const s=localStorage.getItem('pool_career');return s?Object.assign(defaultCareer(),JSON.parse(s)):defaultCareer();}catch(e){return defaultCareer();}}
+function saveCareer(){localStorage.setItem('pool_career',JSON.stringify(career));}
+function recordAiGame(win){
+  career.games++;
+  if(win){career.wins++;career.streak++;career.bestStreak=Math.max(career.bestStreak,career.streak);}else career.streak=0;
+  ACH.forEach(a=>{if(a.f(career)&&!career.unlocked.includes(a.id))career.unlocked.push(a.id);});
+  saveCareer();renderCareer();
+}
+function saveNick(){const n=$('nickInput').value.trim();if(n){career.nick=n;saveCareer();renderCareer();}}
+function setLevel(lv){selectedLevel=lv;document.querySelectorAll('#diffRow button[data-lv]').forEach(b=>b.classList.toggle('sel',+b.dataset.lv===lv));}
+function avatarData(i,size){
+  const c=document.createElement('canvas');c.width=c.height=size;const g=c.getContext('2d');
+  const skin=['#f3d1b4','#f1c27d','#c68642','#8d5524','#6b4226','#ffdbac'][i];
+  const hair=['#e8c34a','#2b2b33','#4a3020','#b3472b','#b9b9c0','#3e6bd6'][i];
+  const bg=['#6fb98f','#6fa8dc','#d8b36a','#e08a8a','#c79bd0','#8fc7c2'][i];
+  const c0=size/2,r=size*.46;
+  g.fillStyle=bg;g.beginPath();g.arc(c0,c0,r,0,Math.PI*2);g.fill();
+  g.fillStyle=skin;g.beginPath();g.arc(c0,size*.55,r*.62,0,Math.PI*2);g.fill();
+  g.fillStyle=hair;
+  if(i===4){g.fillRect(c0-r*.62,size*.47,r*1.24,r*.16);g.beginPath();g.arc(c0,size*.62,r*.55,0,Math.PI);g.fill();}
+  else{g.beginPath();g.arc(c0,size*.5,r*.62,Math.PI,0);g.fill();
+       if(i===1){g.fillRect(c0-r*.72,size*.5,r*.2,r*.5);g.fillRect(c0+r*.52,size*.5,r*.2,r*.5);}}
+  g.fillStyle='#2a2a2a';g.beginPath();g.arc(c0-r*.2,size*.55,r*.07,0,Math.PI*2);g.arc(c0+r*.2,size*.55,r*.07,0,Math.PI*2);g.fill();
+  g.strokeStyle='#b0503c';g.lineWidth=size*.03;g.beginPath();g.arc(c0,size*.6,r*.16,.15*Math.PI,.85*Math.PI);g.stroke();
+  return c.toDataURL();
+}
+function renderCareer(){
+  if(!$('avatarGrid'))return;
+  $('bigAvatar').src=avatarData(career.avatar,132);
+  $('careerWho').textContent=guest?'游客模式':user;
+  if(!$('avatarGrid').dataset.built){
+    let html='';for(let i=0;i<6;i++)html+=`<img data-i="${i}" src="${avatarData(i,64)}" onclick="pickAvatar(${i})">`;
+    $('avatarGrid').innerHTML=html;$('avatarGrid').dataset.built='1';
   }
-})();
+  document.querySelectorAll('#avatarGrid img').forEach(el=>el.classList.toggle('sel',+el.dataset.i===career.avatar));
+  $('nickInput').value=career.nick;
+  const pct=career.games?Math.round(career.wins/career.games*100)+'%':'—';
+  $('statGrid').innerHTML=[
+    ['人机胜场',career.wins],['总局数',career.games],['胜率',pct],
+    ['最长连赢',career.bestStreak],['累计进球',career.potted],['开球进球',career.breakPots]
+  ].map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+  const done=career.unlocked.length;
+  $('achCount').textContent=done;
+  $('achBar').style.width=(done/ACH.length*100)+'%';
+  $('achList').innerHTML=ACH.map(a=>{const ok=career.unlocked.includes(a.id);
+    return `<div class="ach ${ok?'done':''}"><div class="ic">${ok?'✓':'○'}</div><div><div class="nm">${a.n}</div><div class="ds">${a.d}</div></div></div>`;}).join('');
+}
+function pickAvatar(i){career.avatar=i;saveCareer();renderCareer();}
+
+// ---------- 结算 ----------
+function showWin(st){
+  const w=st.winner;
+  $('overTitle').textContent=(st.players[w]||'?')+' 获胜';
+  $('overSub').textContent=st.ai?(w===0?'恭喜，你赢了！':'很遗憾，你输了'):(w===me?'你获胜！':'你输了');
+  $('overlay').classList.add('show');
+  if(st.ai)$('restartBtn').classList.remove('hidden');
+}
+function closeOverlay(){$('overlay').classList.remove('show');}
+
+boot();
 </script>
 </body>
 </html>

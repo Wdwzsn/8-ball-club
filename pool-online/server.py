@@ -24,6 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from game import Shot, Track, advance, all_stopped, snapshot
 from match import Match
+from ai import AI
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, "data")
@@ -50,9 +51,32 @@ def init_db():
             token TEXT PRIMARY KEY,
             user_id INTEGER NOT NULL,
             created_at INTEGER NOT NULL)""")
+        cols = [r["name"] for r in c.execute("PRAGMA table_info(users)")]
+        if "is_guest" not in cols:
+            c.execute("ALTER TABLE users ADD COLUMN is_guest INTEGER NOT NULL DEFAULT 0")
 
 
 init_db()
+
+
+def is_guest(user_id):
+    with db() as c:
+        row = c.execute("SELECT is_guest FROM users WHERE id=?", (user_id,)).fetchone()
+    return bool(row and row["is_guest"])
+
+
+def create_guest():
+    for _ in range(6):
+        name = "游客" + secrets.token_hex(3).upper()
+        try:
+            with db() as c:
+                cur = c.execute(
+                    "INSERT INTO users(username, pass_hash, created_at, is_guest) VALUES(?,?,?,1)",
+                    (name, "", int(time.time())))
+                return cur.lastrowid, name
+        except sqlite3.IntegrityError:
+            continue
+    return None, None
 
 
 def hash_password(pw, salt):
@@ -162,6 +186,55 @@ def simulate_and_broadcast(room, shot):
         broadcast(room, {"type": "state", "state": room.state()})
 
 
+# ------------------------------------------------------- 人机对战
+
+AI_GAMES = {}          # user_id -> {"match": Match, "level": int, "busy": bool}
+
+
+def ai_public_state(g):
+    st = g["match"].state()
+    st["id"] = "ai"
+    st["ai"] = True
+    st["level"] = g["level"]
+    return st
+
+
+def _stream_shot(user_id, m, shot):
+    m.arm_shot(shot)
+    track = Track()
+    dt = 1.0 / 120.0
+    last = 0.0
+    for _ in range(7000):
+        advance(m.balls, dt, track)
+        if all_stopped(m.balls):
+            break
+        now = time.time()
+        if now - last >= 1.0 / 30.0:
+            last = now
+            push(user_id, {"type": "frame", "balls": snapshot(m.balls)})
+    return m.resolve(track, shot)
+
+
+def _ai_worker(user_id, g, human_shot):
+    m = g["match"]
+    try:
+        _stream_shot(user_id, m, human_shot)
+        push(user_id, {"type": "state", "state": ai_public_state(g)})
+        guard = 0
+        while m.current != 0 and m.winner < 0 and guard < 24:
+            guard += 1
+            push(user_id, {"type": "ai_thinking", "state": ai_public_state(g)})
+            time.sleep(0.8)
+            shot = AI.choose(m, g["level"])
+            _stream_shot(user_id, m, shot)
+            push(user_id, {"type": "state", "state": ai_public_state(g)})
+    except Exception as e:
+        m.log.append("AI 错误：" + str(e))
+    finally:
+        g["busy"] = False
+        push(user_id, {"type": "state", "state": ai_public_state(g)})
+
+
 # --------------------------------------------------------------- http server
 
 class Handler(BaseHTTPRequestHandler):
@@ -231,9 +304,14 @@ class Handler(BaseHTTPRequestHandler):
             self.sse_events()
         elif path == "/api/me":
             uid = self._auth_user()
-            self._json_ok({"user": username_of(uid)} if uid else {"user": None})
+            if uid:
+                self._json_ok({"user": username_of(uid), "guest": is_guest(uid)})
+            else:
+                self._json_ok({"user": None})
         elif path == "/api/health":
             self._json_ok({"ok": True, "rooms": len(ROOMS), "waiting": len(WAITING)})
+        elif path == "/api/ai/state":
+            self.ai_state()
         else:
             self._serve_static()
 
@@ -243,12 +321,18 @@ class Handler(BaseHTTPRequestHandler):
             self.register()
         elif path == "/api/login":
             self.login()
+        elif path == "/api/guest":
+            self.guest_login()
         elif path == "/api/logout":
             self.logout()
         elif path == "/api/match/join":
             self.match_join()
         elif path == "/api/match/shoot":
             self.match_shoot()
+        elif path == "/api/ai/new":
+            self.ai_new()
+        elif path == "/api/ai/shoot":
+            self.ai_shoot()
         else:
             self._err(404, "not found")
 
@@ -267,7 +351,14 @@ class Handler(BaseHTTPRequestHandler):
         if uid is None:
             self._err(409, "该昵称已被注册")
             return
-        self._json_ok({"token": create_session(uid), "user": name})
+        self._json_ok({"token": create_session(uid), "user": name, "guest": False})
+
+    def guest_login(self):
+        uid, name = create_guest()
+        if uid is None:
+            self._err(500, "游客创建失败，请重试")
+            return
+        self._json_ok({"token": create_session(uid), "user": name, "guest": True})
 
     def login(self):
         b = self._body_json()
@@ -275,7 +366,7 @@ class Handler(BaseHTTPRequestHandler):
         if uid is None:
             self._err(401, "昵称或密码错误")
             return
-        self._json_ok({"token": create_session(uid), "user": username_of(uid)})
+        self._json_ok({"token": create_session(uid), "user": username_of(uid), "guest": is_guest(uid)})
 
     def logout(self):
         q = urllib.parse.urlparse(self.path).query
@@ -350,6 +441,68 @@ class Handler(BaseHTTPRequestHandler):
         )
         room.busy = True
         threading.Thread(target=simulate_and_broadcast, args=(room, shot), daemon=True).start()
+        self._json_ok({"status": "ok"})
+
+    # ---- 人机对战
+    def ai_new(self):
+        uid = self._auth_user()
+        if not uid:
+            self._err(401, "请先登录")
+            return
+        b = self._body_json()
+        level = int(b.get("level", 1))
+        level = max(0, min(2, level))
+        with LOCK:
+            g = AI_GAMES.get(uid)
+            if g and g["match"].winner < 0 and not g["busy"]:
+                g["level"] = level
+                self._json_ok({"state": ai_public_state(g)})
+                return
+            m = Match(secrets.randbits(63), names=(username_of(uid), "电脑"))
+            g = {"match": m, "level": level, "busy": False}
+            AI_GAMES[uid] = g
+        self._json_ok({"state": ai_public_state(g)})
+
+    def ai_state(self):
+        uid = self._auth_user()
+        if not uid:
+            self._err(401, "请先登录")
+            return
+        g = AI_GAMES.get(uid)
+        if not g:
+            self._err(409, "还没有人机对局")
+            return
+        self._json_ok({"state": ai_public_state(g)})
+
+    def ai_shoot(self):
+        uid = self._auth_user()
+        if not uid:
+            self._err(401, "请先登录")
+            return
+        g = AI_GAMES.get(uid)
+        if not g:
+            self._err(409, "还没有人机对局")
+            return
+        m = g["match"]
+        if m.current != 0:
+            self._err(409, "还没轮到你")
+            return
+        if g["busy"]:
+            self._err(409, "正在处理上一杆")
+            return
+        b = self._body_json()
+        cue = m.balls[0]
+        shot = Shot(
+            float(b.get("x", cue.x)),
+            float(b.get("y", cue.y)),
+            float(b.get("angle", 0.0)),
+            max(0.05, min(1.0, float(b.get("power", 0.5)))),
+            float(b.get("spinX", 0.0)),
+            float(b.get("spinY", 0.0)),
+            int(b.get("calledPocket", -1)),
+        )
+        g["busy"] = True
+        threading.Thread(target=_ai_worker, args=(uid, g, shot), daemon=True).start()
         self._json_ok({"status": "ok"})
 
     # ---- SSE
